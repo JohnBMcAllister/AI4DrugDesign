@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import time
@@ -7,48 +8,9 @@ from openai import OpenAI
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Standard reference pricing per 1M tokens (adjust according to your provider tier)
+# Standard reference pricing per 1M tokens
 INPUT_PRICE_PER_M = 0.05
 OUTPUT_PRICE_PER_M = 0.40
-
-# Representative test samples matching the exact state dictionaries passed in detail.py
-TEST_SAMPLES = [
-    {
-        "protein": {
-            "title": "SARS-CoV-2 main protease",
-            "pdb_id": "6LU7",
-            "classification": "VIRAL PROTEIN",
-            "organism": "Severe acute respiratory syndrome coronavirus 2",
-        },
-        "compound": {
-            "name": "N3 inhibitor",
-            "smiles": "CC(C)C[C@H](NC(=O)[C@H](CC1=CC=CC=C1)NC(=O)OCC2=CC=CC=C2)C(=O)N[C@@H](CC(=O)N3CC[C@@H]3)C(=O)C=C",
-            "mw": 680.8,
-            "logp": 2.1,
-            "activity_type": "IC50",
-            "activity_value": "16.7",
-            "activity_units": "uM",
-        },
-    },
-    {
-        "protein": {
-            "title": "Tyrosine-protein kinase ABL1",
-            "pdb_id": "1IEP",
-            "classification": "TRANSFERASE",
-            "organism": "Homo sapiens",
-        },
-        "compound": {
-            "name": "Imatinib",
-            "smiles": "CC1=C(C=C(C=C1)NC(=O)C2=CC=C(C=C2)CN3CCN(CC3)C)NC4=NC=CC(=N4)C5=CN=CC=C5",
-            "mw": 493.6,
-            "logp": 3.5,
-            "activity_type": "Ki",
-            "activity_value": "0.1",
-            "activity_units": "uM",
-        },
-    },
-    # Add 15–20 curated test pairs here
-]
 
 
 def format_pipeline_prompt(p: dict, c: dict) -> str:
@@ -162,8 +124,25 @@ def benchmark_model(
 
 
 if __name__ == "__main__":
+  candidate_files = sorted(glob.glob("benchmarks/*_candidates.json"))
+
+  combined_dataset = []
+  for file_path in candidate_files:
+    with open(file_path, "r") as f:
+      items = json.load(f)
+      combined_dataset.extend(items)
+      print(f"Loaded {len(items)} samples from {file_path}")
+
+  # Fallback to TEST_SAMPLES if no generated candidate files were found
+  if not combined_dataset:
+    print("No *_candidates.json files found. Falling back to TEST_SAMPLES...")
+    combined_dataset = TEST_SAMPLES
+
+  print(f"\nTotal test samples ready for evaluation: {len(combined_dataset)}")
+
+  # Execute baseline control benchmark
   benchmark_model(
       model_name="gpt-5-nano-2025-08-07",
-      dataset=TEST_SAMPLES,
+      dataset=combined_dataset,
       out_path="benchmarks/results/baseline_control.json",
   )
