@@ -1,0 +1,87 @@
+[
+  {
+    "protein": {
+      "title": "Human Abl kinase domain in complex with imatinib (STI571, Glivec)",
+      "pdb_id": "2HYY",
+      "classification": "TRANSFERASE",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL399246",
+      "smiles": "Cc1cc(-c2cc(O)ccc2Cl)cc2nnc(Nc3ccc(C(=O)N4CCN(C)CC4)cc3)nc12",
+      "mw": 489.0,
+      "logp": 4.49,
+      "activity_type": "Ki",
+      "activity_value": 0.5,
+      "activity_units": "nM"
+    }
+  },
+  {
+    "protein": {
+      "title": "Human Abl kinase domain in complex with imatinib (STI571, Glivec)",
+      "pdb_id": "2HYY",
+      "classification": "TRANSFERASE",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL520512",
+      "smiles": "Cc1cccc(Oc2ccnc(N3CCN(CC(=O)Nc4cccc5c4CCCC5)CC3)n2)c1",
+      "mw": 457.6,
+      "logp": 4.22,
+      "activity_type": "Inhibition",
+      "activity_value": 1.0,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "Human Abl kinase domain in complex with imatinib (STI571, Glivec)",
+      "pdb_id": "2HYY",
+      "classification": "TRANSFERASE",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL566515",
+      "smiles": "COc1ccccc1-n1c(-c2cc(O)ccc2C)cn2c3c(=O)[nH]c(=O)n(C)c3nc12",
+      "mw": 417.4,
+      "logp": 2.35,
+      "activity_type": "Activity",
+      "activity_value": 0.15,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "Human Abl kinase domain in complex with imatinib (STI571, Glivec)",
+      "pdb_id": "2HYY",
+      "classification": "TRANSFERASE",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL510893",
+      "smiles": "Cc1ccc2[nH]ncc2c1/C=C/n1cnc2c(Nc3ccc(P(C)(C)=O)cc3)ncnc21",
+      "mw": 443.5,
+      "logp": 4.63,
+      "activity_type": "IC50",
+      "activity_value": 0.46,
+      "activity_units": "nM"
+    }
+  },
+  {
+    "protein": {
+      "title": "Human Abl kinase domain in complex with imatinib (STI571, Glivec)",
+      "pdb_id": "2HYY",
+      "classification": "TRANSFERASE",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL1221411",
+      "smiles": "Cn1c(=O)c(-c2c(Cl)cccc2Cl)cc2cnc(Nc3cccc(NC(=O)CN)c3)nc21",
+      "mw": 469.3,
+      "logp": 3.94,
+      "activity_type": "Ki",
+      "activity_value": 0.02,
+      "activity_units": "nM"
+    }
+  }
+]
