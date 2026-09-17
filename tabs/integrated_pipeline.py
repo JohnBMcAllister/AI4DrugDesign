@@ -95,7 +95,49 @@ def _pipeline_initial_status(strategy):
 
 
 # ── UI ─────────────────────────────────────────────────────────────────
+import json
+import os
 
+
+def _dump_test_candidates(pdb_id, protein_state, final_state):
+  """Saves the top candidates from the completed pipeline run as benchmark test cases."""
+  if not final_state or not protein_state:
+    return
+
+  os.makedirs("benchmarks", exist_ok=True)
+  clean_pdb = (
+      pdb_id.strip().upper() if pdb_id else protein_state.get("pdb_id", "TARGET")
+  )
+  file_path = f"benchmarks/{clean_pdb}_candidates.json"
+
+  protein_meta = {
+      "title": protein_state.get("title", ""),
+      "pdb_id": clean_pdb,
+      "classification": protein_state.get("classification", ""),
+      "organism": protein_state.get("organism", ""),
+  }
+
+  # Creates a flat list of {"protein": ..., "compound": ...} pairs
+  payload = [
+      {
+          "protein": protein_meta,
+          "compound": {
+              "name": c.get("name", "Unknown"),
+              "smiles": c.get("smiles", ""),
+              "mw": c.get("mw", "N/A"),
+              "logp": c.get("logp", "N/A"),
+              "activity_type": c.get("activity_type", "IC50"),
+              "activity_value": c.get("activity_value", "N/A"),
+              "activity_units": c.get("activity_units", ""),
+          },
+      }
+      for c in final_state[:5]
+  ]
+
+  with open(file_path, "w") as f:
+    json.dump(payload, f, indent=2)
+
+  logger.info(f"Dumped top benchmark cases to {file_path}")
 
 def create_tab():
     with gr.Tab("Drug Discovery Pipeline"):
@@ -390,6 +432,10 @@ def create_tab():
             populate_compound_selector,
             inputs=[final_state],
             outputs=[compound_selector],
+            **_progress_args,
+        ).then(
+            _dump_test_candidates,
+            inputs=[pdb_input, protein_state, final_state],
             **_progress_args,
         )
 
