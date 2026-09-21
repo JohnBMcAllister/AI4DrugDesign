@@ -52,3 +52,11 @@ Temporary Items
 
 # Log files
 *.log
+
+# Local working docs for the Claude comparison (report lives in Overleaf)
+benchmarks/ANALYSIS.md
+benchmarks/report_sections.tex
+
+# Unlabelled / partial benchmark output dirs; only outputs/blind is committed
+benchmarks/outputs/*/
+!benchmarks/outputs/blind/
