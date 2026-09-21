@@ -12,7 +12,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from tabs.pipeline.helpers import get_openai_client, logger
+from tabs.pipeline.helpers import ai_complete, logger
 
 _SKIP_RESIDUES_POCKET = frozenset({
     "HOH", "SO4", "PO4", "GOL", "EDO", "ACT", "FMT", "IOD",
@@ -583,11 +583,6 @@ def ai_explain_compound(selected_state, protein_state):
         logger.warning("AI explanation requested with no protein data")
         return "No protein data available."
 
-    client = get_openai_client()
-    if not client:
-        logger.warning("AI explanation requested but OpenAI API key not set")
-        return "[OpenAI API key not set — cannot generate explanation]"
-
     c = selected_state
     p = protein_state
     logger.info(f"Generating AI explanation for {c.get('name')} targeting {p['pdb_id']}")
@@ -616,12 +611,12 @@ def ai_explain_compound(selected_state, protein_state):
     )
 
     try:
-        resp = client.chat.completions.create(
-            model="gpt-5-nano-2025-08-07",
-            messages=[{"role": "user", "content": prompt}],
-        )
+        explanation = ai_complete(prompt)
+        if not explanation:
+            logger.warning("AI explanation requested but no API key set")
+            return "[API key not set — cannot generate explanation]"
         logger.info("AI compound explanation completed successfully")
-        return resp.choices[0].message.content
+        return explanation
     except Exception as exc:
         logger.error(f"AI compound explanation failed: {exc}")
         return f"AI analysis failed: {exc}"

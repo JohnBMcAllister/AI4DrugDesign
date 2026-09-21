@@ -1,8 +1,9 @@
-"""Shared helpers: logging, OpenAI client, PDB ligand / UniProt lookups."""
+"""Shared helpers: logging, OpenAI / Anthropic clients, PDB ligand / UniProt lookups."""
 
 import logging
 import os
 
+import anthropic
 import requests
 from openai import OpenAI
 
@@ -26,6 +27,55 @@ def get_openai_client():
     if not api_key:
         return None
     return OpenAI(api_key=api_key)
+
+
+# ── Anthropic ─────────────────────────────────────────────────────────
+
+def get_anthropic_client():
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    return anthropic.Anthropic(api_key=api_key)
+
+
+# ── AI backend ────────────────────────────────────────────────────────
+
+CLAUDE_MAX_TOKENS = 4096
+
+
+def ai_complete(prompt: str) -> str | None:
+    """Send *prompt* to the configured backend and return its text.
+
+    The backend is chosen by AI_PROVIDER in .env ("openai" by default,
+    "anthropic" for Claude). Returns None when the relevant API key is
+    missing, so callers degrade the same way they did when
+    get_openai_client() returned None.
+
+    Env is read on every call, not at import time: app.py imports the tabs
+    package before it calls load_dotenv(), so anything read at module level
+    would miss the .env values entirely.
+    """
+    provider = os.getenv("AI_PROVIDER", "openai").strip().lower()
+
+    if provider == "anthropic":
+        client = get_anthropic_client()
+        if client is None:
+            return None
+        resp = client.messages.create(
+            model=os.getenv("CLAUDE_MODEL", "claude-haiku-4-5"),
+            max_tokens=CLAUDE_MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "".join(b.text for b in resp.content if b.type == "text")
+
+    client = get_openai_client()
+    if client is None:
+        return None
+    resp = client.chat.completions.create(
+        model=os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07"),
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.choices[0].message.content
 
 
 # ── Constants ─────────────────────────────────────────────────────────
