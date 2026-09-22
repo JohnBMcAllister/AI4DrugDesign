@@ -3,7 +3,7 @@ import json
 import os
 import time
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, BadRequestError
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
