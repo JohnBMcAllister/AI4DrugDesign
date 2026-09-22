@@ -58,9 +58,17 @@ def benchmark_model(
             runs = []
 
     completed_indices = {r["index"] for r in runs}
-    total_in_tokens = sum(r.get("prompt_tokens", 0) for r in runs if "error" not in r)
-    total_out_tokens = sum(r.get("completion_tokens", 0) for r in runs if "error" not in r)
-    total_latency = sum(r.get("latency_sec", 0.0) for r in runs if "error" not in r)
+
+    def is_excluded(r):
+        """Runs that shouldn't count toward the averages: hard errors and
+        'bad' responses (empty output or content-filtered) that still came
+        back as a 200 from the API."""
+        return "error" in r or r.get("flagged", False)
+
+    total_in_tokens = sum(r.get("prompt_tokens", 0) for r in runs if not is_excluded(r))
+    total_out_tokens = sum(r.get("completion_tokens", 0) for r in runs if not is_excluded(r))
+    total_latency = sum(r.get("latency_sec", 0.0) for r in runs if not is_excluded(r))
+    total_cost = sum(r.get("cost_usd", 0.0) for r in runs if not is_excluded(r))
 
     for idx, sample in enumerate(dataset, start=1):
         if idx in completed_indices:
@@ -85,9 +93,11 @@ def benchmark_model(
                 (out_tokens / 1_000_000) * OUTPUT_PRICE_PER_M
             )
 
-            total_in_tokens += in_tokens
-            total_out_tokens += out_tokens
-            total_latency += elapsed
+            choice = res.choices[0]
+            content = choice.message.content
+            finish_reason = choice.finish_reason
+            is_empty = not content or not content.strip()
+            is_bad = is_empty or finish_reason == "content_filter"
 
             record = {
                 "index": idx,
@@ -98,12 +108,26 @@ def benchmark_model(
                 "completion_tokens": out_tokens,
                 "total_tokens": usage.total_tokens,
                 "cost_usd": round(cost, 6),
-                "output": res.choices[0].message.content,
+                "finish_reason": finish_reason,
+                "output": content,
             }
-            print(
-                f"Completed [{idx}/{len(dataset)}] {record['compound_name']} | "
-                f"{record['latency_sec']}s | {usage.total_tokens} tokens"
-            )
+
+            if is_bad:
+                record["flagged"] = True
+                record["flag_reason"] = "empty_completion" if is_empty else "content_filter"
+                print(
+                    f"Flagged [{idx}/{len(dataset)}] {compound.get('name')} | "
+                    f"{record['flag_reason']} (excluded from stats)"
+                )
+            else:
+                total_in_tokens += in_tokens
+                total_out_tokens += out_tokens
+                total_latency += elapsed
+                total_cost += cost
+                print(
+                    f"Completed [{idx}/{len(dataset)}] {record['compound_name']} | "
+                    f"{record['latency_sec']}s | {usage.total_tokens} tokens"
+                )
 
         except BadRequestError as e:
             elapsed = time.perf_counter() - start
@@ -125,20 +149,51 @@ def benchmark_model(
         runs.append(record)
 
         # Checkpoint to disk on every single sample
-        valid_runs = [r for r in runs if "error" not in r]
+        valid_runs = [r for r in runs if not is_excluded(r)]
         n_valid = len(valid_runs)
+        flagged_count = sum(1 for r in runs if r.get("flagged", False))
+        error_count = sum(1 for r in runs if "error" in r)
+        avg_cost = round(total_cost / n_valid, 6) if n_valid else 0
         summary = {
             "model": model_name,
             "total_samples": len(dataset),
             "completed_samples": len(runs),
             "valid_samples": n_valid,
+            "flagged_samples": flagged_count,
+            "error_samples": error_count,
             "avg_latency_sec": round(total_latency / n_valid, 3) if n_valid else 0,
             "avg_prompt_tokens": round(total_in_tokens / n_valid, 1) if n_valid else 0,
             "avg_completion_tokens": round(total_out_tokens / n_valid, 1) if n_valid else 0,
+            "avg_cost_usd": avg_cost,
+            "projected_cost_per_1k_runs_usd": round(avg_cost * 1000, 4) if n_valid else 0,
             "runs": runs,
         }
         with open(out_path, "w") as f:
             json.dump(summary, f, indent=2)
+
+    # Final recompute + write, so a fully-resumed run (nothing left to do in
+    # the loop above) still gets the summary refreshed in the latest format.
+    valid_runs = [r for r in runs if not is_excluded(r)]
+    n_valid = len(valid_runs)
+    flagged_count = sum(1 for r in runs if r.get("flagged", False))
+    error_count = sum(1 for r in runs if "error" in r)
+    avg_cost = round(total_cost / n_valid, 6) if n_valid else 0
+    summary = {
+        "model": model_name,
+        "total_samples": len(dataset),
+        "completed_samples": len(runs),
+        "valid_samples": n_valid,
+        "flagged_samples": flagged_count,
+        "error_samples": error_count,
+        "avg_latency_sec": round(total_latency / n_valid, 3) if n_valid else 0,
+        "avg_prompt_tokens": round(total_in_tokens / n_valid, 1) if n_valid else 0,
+        "avg_completion_tokens": round(total_out_tokens / n_valid, 1) if n_valid else 0,
+        "avg_cost_usd": avg_cost,
+        "projected_cost_per_1k_runs_usd": round(avg_cost * 1000, 4) if n_valid else 0,
+        "runs": runs,
+    }
+    with open(out_path, "w") as f:
+        json.dump(summary, f, indent=2)
 
     print(f"\nSaved final benchmark results to {out_path}")
 
