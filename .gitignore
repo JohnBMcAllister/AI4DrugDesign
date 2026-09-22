@@ -52,3 +52,6 @@ Temporary Items
 
 # Log files
 *.log
+
+# Isolated benchmark dependencies
+.venv-benchmark/

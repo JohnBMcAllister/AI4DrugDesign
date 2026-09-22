@@ -9,8 +9,8 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Standard reference pricing per 1M tokens
-INPUT_PRICE_PER_M = 10.00
-OUTPUT_PRICE_PER_M = 50.00
+INPUT_PRICE_PER_M = 2.00
+OUTPUT_PRICE_PER_M = 12.00
 
 
 def format_pipeline_prompt(p: dict, c: dict) -> str:
@@ -42,7 +42,7 @@ def format_pipeline_prompt(p: dict, c: dict) -> str:
 def benchmark_model(
     model_name: str,
     dataset: list,
-    out_path: str = "benchmarks/results/astra-eval.json",
+    out_path: str = "benchmarks/results/terra-eval.json",
 ):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     
@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
   # Execute baseline control benchmark
   benchmark_model(
-      model_name="gpt-6-astra",
+      model_name="gpt-5.6-terra",
       dataset=combined_dataset,
-      out_path="benchmarks/results/astra-eval.json",
+      out_path="benchmarks/results/terra-eval.json",
   )
