@@ -44,83 +44,103 @@ def benchmark_model(
     dataset: list,
     out_path: str = "benchmarks/results/astra-eval.json",
 ):
-  os.makedirs(os.path.dirname(out_path), exist_ok=True)
-  runs = []
-  total_in_tokens = 0
-  total_out_tokens = 0
-  total_latency = 0.0
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    
+    # Resume from existing progress if file already exists
+    runs = []
+    if os.path.exists(out_path):
+        try:
+            with open(out_path, "r") as f:
+                saved = json.load(f)
+                runs = saved.get("runs", [])
+                print(f"Resuming benchmark: loaded {len(runs)} existing runs.")
+        except Exception:
+            runs = []
 
-  for idx, sample in enumerate(dataset, start=1):
-    protein = sample["protein"]
-    compound = sample["compound"]
-    prompt = format_pipeline_prompt(protein, compound)
+    completed_indices = {r["index"] for r in runs}
+    total_in_tokens = sum(r.get("prompt_tokens", 0) for r in runs if "error" not in r)
+    total_out_tokens = sum(r.get("completion_tokens", 0) for r in runs if "error" not in r)
+    total_latency = sum(r.get("latency_sec", 0.0) for r in runs if "error" not in r)
 
-    start = time.perf_counter()
-    res = client.chat.completions.create(
-        model=model_name,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    elapsed = time.perf_counter() - start
+    for idx, sample in enumerate(dataset, start=1):
+        if idx in completed_indices:
+            continue
 
-    usage = res.usage
-    in_tokens = usage.prompt_tokens
-    out_tokens = usage.completion_tokens
+        protein = sample["protein"]
+        compound = sample["compound"]
+        prompt = format_pipeline_prompt(protein, compound)
 
-    cost = ((in_tokens / 1_000_000) * INPUT_PRICE_PER_M) + (
-        (out_tokens / 1_000_000) * OUTPUT_PRICE_PER_M
-    )
+        start = time.perf_counter()
+        try:
+            res = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            elapsed = time.perf_counter() - start
 
-    total_in_tokens += in_tokens
-    total_out_tokens += out_tokens
-    total_latency += elapsed
+            usage = res.usage
+            in_tokens = usage.prompt_tokens
+            out_tokens = usage.completion_tokens
+            cost = ((in_tokens / 1_000_000) * INPUT_PRICE_PER_M) + (
+                (out_tokens / 1_000_000) * OUTPUT_PRICE_PER_M
+            )
 
-    record = {
-        "index": idx,
-        "pdb_id": protein.get("pdb_id"),
-        "compound_name": compound.get("name"),
-        "latency_sec": round(elapsed, 3),
-        "prompt_tokens": in_tokens,
-        "completion_tokens": out_tokens,
-        "total_tokens": usage.total_tokens,
-        "cost_usd": round(cost, 6),
-        "output": res.choices[0].message.content,
-    }
-    runs.append(record)
-    print(
-        f"Completed [{idx}/{len(dataset)}] {record['compound_name']} |"
-        f" {record['latency_sec']}s | {usage.total_tokens} tokens"
-    )
+            total_in_tokens += in_tokens
+            total_out_tokens += out_tokens
+            total_latency += elapsed
 
-  n = len(dataset)
-  summary = {
-      "model": model_name,
-      "sample_count": n,
-      "avg_latency_sec": round(total_latency / n, 3) if n else 0,
-      "avg_prompt_tokens": round(total_in_tokens / n, 1) if n else 0,
-      "avg_completion_tokens": round(total_out_tokens / n, 1) if n else 0,
-      "projected_cost_per_1k_runs_usd": (
-          round(
-              (
-                  ((total_in_tokens / n) * 1000 / 1_000_000 * INPUT_PRICE_PER_M)
-                  + (
-                      (total_out_tokens / n)
-                      * 1000
-                      / 1_000_000
-                      * OUTPUT_PRICE_PER_M
-                  )
-              ),
-              4,
-          )
-          if n
-          else 0
-      ),
-      "runs": runs,
-  }
+            record = {
+                "index": idx,
+                "pdb_id": protein.get("pdb_id"),
+                "compound_name": compound.get("name"),
+                "latency_sec": round(elapsed, 3),
+                "prompt_tokens": in_tokens,
+                "completion_tokens": out_tokens,
+                "total_tokens": usage.total_tokens,
+                "cost_usd": round(cost, 6),
+                "output": res.choices[0].message.content,
+            }
+            print(
+                f"Completed [{idx}/{len(dataset)}] {record['compound_name']} | "
+                f"{record['latency_sec']}s | {usage.total_tokens} tokens"
+            )
 
-  with open(out_path, "w") as f:
-    json.dump(summary, f, indent=2)
+        except BadRequestError as e:
+            elapsed = time.perf_counter() - start
+            err_code = getattr(e, "code", "bad_request")
+            print(f"Skipped [{idx}/{len(dataset)}] {compound.get('name')} | Flagged ({err_code}): {e.message}")
+            record = {
+                "index": idx,
+                "pdb_id": protein.get("pdb_id"),
+                "compound_name": compound.get("name"),
+                "latency_sec": round(elapsed, 3),
+                "error": str(e.message),
+                "code": err_code,
+                "output": None,
+            }
+        except Exception as e:
+            print(f"Error on [{idx}/{len(dataset)}] {compound.get('name')}: {e}")
+            break
 
-  print(f"\nSaved control benchmark results to {out_path}")
+        runs.append(record)
+
+        # Checkpoint to disk on every single sample
+        valid_runs = [r for r in runs if "error" not in r]
+        n_valid = len(valid_runs)
+        summary = {
+            "model": model_name,
+            "total_samples": len(dataset),
+            "completed_samples": len(runs),
+            "valid_samples": n_valid,
+            "avg_latency_sec": round(total_latency / n_valid, 3) if n_valid else 0,
+            "avg_prompt_tokens": round(total_in_tokens / n_valid, 1) if n_valid else 0,
+            "avg_completion_tokens": round(total_out_tokens / n_valid, 1) if n_valid else 0,
+            "runs": runs,
+        }
+        with open(out_path, "w") as f:
+            json.dump(summary, f, indent=2)
+
+    print(f"\nSaved final benchmark results to {out_path}")
 
 
 if __name__ == "__main__":
