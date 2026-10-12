@@ -1,1 +1,24 @@
 The purpose of this directory is to test AI models to gain benchmarks to later compare with other models.
+
+Install the local embedding evaluator used by the three scientific-quality
+metrics:
+
+```bash
+uv sync --extra benchmark
+```
+
+The Anthropic benchmark preserves this branch's existing Haiku and Sonnet
+result filenames. If a result already contains completed generations, the
+script backfills MCTD, semantic alignment, and the GPT-4o-mini structured
+rubric without regenerating those Claude answers.
+
+```bash
+uv run --extra benchmark python benchmarks/benchmarks_anthropic.py \
+  --model claude-haiku-4-5
+
+uv run --extra benchmark python benchmarks/benchmarks_anthropic.py \
+  --model claude-sonnet-5
+```
+
+Set `ANTHROPIC_API_KEY` for new Claude generations and `OPENAI_API_KEY` for
+the shared GPT-4o-mini judge. Back up result files before the first backfill.
