@@ -21,3 +21,8 @@ dependencies = [
     "Pillow",
     "pytest>=8.0.0",
 ]
+
+[project.optional-dependencies]
+benchmark = [
+    "sentence-transformers>=3.0.0,<7.0.0",
+]
