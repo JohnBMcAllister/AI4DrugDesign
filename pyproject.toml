@@ -21,3 +21,9 @@ dependencies = [
     "Pillow",
     "pytest>=8.0.0",
 ]
+
+[project.optional-dependencies]
+benchmark = [
+    "anthropic>=1.6.0",
+    "sentence-transformers>=3.0.0,<7.0.0",
+]

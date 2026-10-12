@@ -1,1 +1,23 @@
 The purpose of this directory is to test AI models to gain benchmarks to later compare with other models.
+
+Install the optional local embedding evaluator before running the benchmark:
+
+```bash
+uv sync --extra benchmark
+```
+
+The benchmark uses `sentence-transformers/all-mpnet-base-v2` by default for
+target-conditioned semantic alignment. Override it by passing
+`embedding_model_name` to `benchmark_model`. The model weights are downloaded
+on first use and can be reused offline from the local Hugging Face cache.
+
+Existing result files are resumed. Missing MCTD, semantic-alignment, and
+structured-judge metrics are backfilled without regenerating model outputs.
+Each judge result is checkpointed immediately so interrupted runs can resume
+without repeating successful paid evaluations.
+
+Run the OpenAI benchmark from the project root:
+
+```bash
+uv run --extra benchmark python benchmarks/benchmarks_openai.py
+```
