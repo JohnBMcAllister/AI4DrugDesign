@@ -123,6 +123,10 @@ def build_receptor_interaction_viewer_html(
     If docked_sdf is provided (from an actual AutoDock Vina run) it is used directly
     as the compound geometry instead of re-generating a conformer from SMILES.
     """
+    # Binding-site centre: needed by the page script for both the docked pose
+    # and the fallback conformer, so it must be set before either branch.
+    cx, cy, cz = (binding_center if binding_center else (0.0, 0.0, 0.0))
+
     if docked_sdf:
         # Use the real Vina-docked pose — no conformer generation or translation needed
         mol = Chem.MolFromMolBlock(docked_sdf, removeHs=False, sanitize=True)
@@ -151,7 +155,6 @@ def build_receptor_interaction_viewer_html(
         except Exception:
             pass
 
-        cx, cy, cz = (binding_center if binding_center else (0.0, 0.0, 0.0))
         try:
             conf = mol.GetConformer()
             centroid = conf.GetPositions().mean(axis=0)
@@ -573,6 +576,137 @@ def on_select_compound(evt: gr.SelectData, final_state):
     return detail, img, viewer_3d, compound
 
 
+def _fmt(value, fmt="{}", missing="not available"):
+    """Format a value for the prompt; never print a raw None/inf."""
+    if value is None or value == "" or value == float("inf"):
+        return missing
+    try:
+        return fmt.format(value)
+    except (ValueError, TypeError):
+        return str(value)
+
+
+def _get_pocket_contacts(compound: dict, pdb_id: str) -> dict | None:
+    """Re-use the viewer's pocket analysis on the Vina-docked pose.
+
+    Returns None when there is no docked pose (we don't want the model
+    reasoning from a fake conformer placed at the binding centre).
+    """
+    docked_sdf = compound.get("docked_sdf", "")
+    if not docked_sdf:
+        return None
+    mol = Chem.MolFromMolBlock(docked_sdf, removeHs=False, sanitize=True)
+    if mol is None:
+        return None
+    try:
+        from tabs.pipeline.docking import fetch_pdb_file
+        pdb_text = fetch_pdb_file(pdb_id)
+    except Exception as exc:
+        logger.warning(f"Could not fetch PDB for pocket analysis: {exc}")
+        return None
+
+    pocket, hbonds, hydro = _analyze_binding_pocket(mol, pdb_text, None)
+
+    # Sort pocket residues by chain and position; only show the chain label when
+    # the pocket spans more than one chain (a sign the pose sits between copies).
+    pocket = sorted(pocket, key=lambda r: (r["chain"], r["res_seq"]))
+    multi_chain = len({r["chain"] for r in pocket}) > 1
+    pocket_labels = [
+        (f"{r['res_name']}{r['res_seq']}({r['chain']})" if multi_chain
+         else f"{r['res_name']}{r['res_seq']}")
+        for r in pocket
+    ]
+    return {
+        "pocket": pocket_labels,
+        "hbonds": [f"{h['res_name']}{h['res_seq']}" for h in hbonds],
+        "hydrophobic": [f"{h['res_name']}{h['res_seq']}" for h in hydro],
+    }
+
+
+def build_compound_context(compound: dict, protein: dict, contacts: dict | None) -> str:
+    """Build the data block the model reasons from. Shared by the app and benchmark."""
+    c, p = compound, protein
+
+    affinity = c.get("vina_affinity")
+    heavy_atoms = None
+    mol = Chem.MolFromSmiles(c.get("smiles", ""))
+    if mol is not None:
+        heavy_atoms = mol.GetNumHeavyAtoms()
+    lig_eff = c.get("ligand_efficiency")
+    if lig_eff is None and isinstance(affinity, (int, float)) and affinity != float("inf") and heavy_atoms:
+        lig_eff = -affinity / heavy_atoms
+
+    if c.get("activity_value") is not None:
+        activity = f"{c.get('activity_type', '')} = {c['activity_value']} {c.get('activity_units', '')}".strip()
+    else:
+        activity = c.get("activity_type") or "no measured value"
+
+    lines = [
+        "PROTEIN TARGET:",
+        f"  Name: {p.get('title', 'N/A')}",
+        f"  PDB ID: {p.get('pdb_id', 'N/A')}",
+        f"  Classification: {p.get('classification', 'N/A')}",
+        f"  Organism: {p.get('organism', 'N/A')}",
+        "",
+        "COMPOUND:",
+        f"  Name: {c.get('name', 'Unknown')}",
+        f"  SMILES: {c.get('smiles', 'N/A')}",
+        f"  Experimental activity (ChEMBL): {activity}",
+        "",
+        "DOCKING RESULTS (AutoDock Vina):",
+        f"  Binding affinity: {_fmt(affinity, '{:.2f} kcal/mol')}",
+        f"  Ligand efficiency: {_fmt(lig_eff, '{:.3f} kcal/mol per heavy atom')}",
+        f"  Heavy atoms: {_fmt(heavy_atoms)}",
+        f"  Rank among docked compounds: {_fmt(c.get('binding_rank'))}",
+        "",
+        "PHYSICOCHEMICAL / ADME PROPERTIES (RDKit):",
+        f"  Molecular weight: {_fmt(c.get('mw'), '{} Da')}",
+        f"  cLogP: {_fmt(c.get('logp'))}",
+        f"  TPSA: {_fmt(c.get('tpsa'), '{} A^2')}",
+        f"  H-bond donors / acceptors: {_fmt(c.get('hbd'))} / {_fmt(c.get('hba'))}",
+        f"  Rotatable bonds: {_fmt(c.get('rot_bonds'))}",
+        f"  Lipinski violations: {_fmt(c.get('ro5_violations'))}",
+        f"  ADME rule score: {_fmt(c.get('adme_score'), '{}/6 thresholds passed')}",
+        "",
+    ]
+
+    if contacts:
+        lines += [
+            "PREDICTED BINDING-SITE CONTACTS (from the docked pose, distance-based):",
+            f"  Pocket residues within 6 A: {', '.join(contacts['pocket']) or 'none found'}",
+            f"  Candidate H-bond partners (N/O to N/O <= 3.5 A): {', '.join(contacts['hbonds']) or 'none found'}",
+            f"  Hydrophobic contacts (C to C <= 4.5 A): {', '.join(contacts['hydrophobic']) or 'none found'}",
+        ]
+    else:
+        lines.append("PREDICTED BINDING-SITE CONTACTS: not available (no docked pose)")
+
+    return "\n".join(lines)
+
+
+EXPLAIN_INSTRUCTIONS = (
+    "You are an expert medicinal chemist reviewing a computational screening hit.\n"
+    "Base your analysis on the data provided below. When you make a claim about "
+    "binding, cite the specific residues or values it comes from. If the data does "
+    "not support a claim, say so rather than guessing. Do not invent residues that "
+    "are not listed. Note that docking scores and distance-based contacts are "
+    "predictions, not experimental measurements.\n\n"
+)
+
+EXPLAIN_QUESTIONS = (
+    "\n\nExplain:\n"
+    "1. How this compound likely binds to the protein (use the docking results and contacts)\n"
+    "2. Key functional groups and their roles in those interactions\n"
+    "3. Mechanism of action (inhibitor, agonist, etc.)\n"
+    "4. Strengths and weaknesses, including binding strength, ligand efficiency, and ADME profile\n"
+    "5. Potential optimization strategies tied to specific weaknesses above\n\n"
+    "Be concise and scientifically accurate."
+)
+
+
+def build_explain_prompt(compound: dict, protein: dict, contacts: dict | None) -> str:
+    return EXPLAIN_INSTRUCTIONS + build_compound_context(compound, protein, contacts) + EXPLAIN_QUESTIONS
+
+
 def ai_explain_compound(selected_state, protein_state):
     """AI-generated explanation of how the compound interacts with the protein."""
     logger.info("=== Generating AI compound explanation ===")
@@ -592,28 +726,9 @@ def ai_explain_compound(selected_state, protein_state):
     p = protein_state
     logger.info(f"Generating AI explanation for {c.get('name')} targeting {p['pdb_id']}")
 
-    prompt = (
-        "You are an expert medicinal chemist. Explain how this compound "
-        "works in the context of its protein target.\n\n"
-        f"PROTEIN:\n"
-        f"  Name: {p['title']}\n"
-        f"  PDB ID: {p['pdb_id']}\n"
-        f"  Classification: {p['classification']}\n"
-        f"  Organism: {p['organism']}\n\n"
-        f"COMPOUND:\n"
-        f"  Name: {c.get('name', 'Unknown')}\n"
-        f"  SMILES: {c.get('smiles', 'N/A')}\n"
-        f"  MW: {c.get('mw', 'N/A')}, LogP: {c.get('logp', 'N/A')}\n"
-        f"  Binding: {c.get('activity_type', 'N/A')} = "
-        f"{c.get('activity_value', 'N/A')} {c.get('activity_units', '')}\n\n"
-        "Explain:\n"
-        "1. How this compound likely binds to the protein\n"
-        "2. Key functional groups and their roles\n"
-        "3. Mechanism of action (inhibitor, agonist, etc.)\n"
-        "4. Strengths and weaknesses\n"
-        "5. Potential optimization strategies\n\n"
-        "Be concise and scientifically accurate."
-    )
+    contacts = _get_pocket_contacts(c, p["pdb_id"])
+    prompt = build_explain_prompt(c, p, contacts)
+    logger.debug(f"Explain prompt:\n{prompt}")
 
     try:
         resp = client.chat.completions.create(
