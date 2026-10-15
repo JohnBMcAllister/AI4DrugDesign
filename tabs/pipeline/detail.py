@@ -12,7 +12,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from tabs.pipeline.helpers import get_openai_client, logger
+from tabs.pipeline.helpers import AI_MODEL, get_openai_client, logger
 
 _SKIP_RESIDUES_POCKET = frozenset({
     "HOH", "SO4", "PO4", "GOL", "EDO", "ACT", "FMT", "IOD",
@@ -732,7 +732,7 @@ def ai_explain_compound(selected_state, protein_state):
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-5-nano-2025-08-07",
+            model=AI_MODEL,
             messages=[{"role": "user", "content": prompt}],
         )
         logger.info("AI compound explanation completed successfully")

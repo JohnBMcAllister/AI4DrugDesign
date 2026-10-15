@@ -5,6 +5,7 @@ import html as html_module
 import requests
 
 from tabs.pipeline.helpers import (
+    AI_MODEL,
     fetch_pdb_ligands,
     get_openai_client,
     get_uniprot_from_pdb,
@@ -251,7 +252,7 @@ def analyze_protein(pdb_id: str):
                 "interactions, and design considerations."
             )
             resp = client.chat.completions.create(
-                model="gpt-5-nano-2025-08-07",
+                model=AI_MODEL,
                 messages=[{"role": "user", "content": prompt}],
             )
             text += "\n\nAI ANALYSIS:\n" + resp.choices[0].message.content
