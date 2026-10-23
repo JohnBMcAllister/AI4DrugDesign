@@ -1,6 +1,80 @@
-# Scientific-Quality Metrics Guide
+# Benchmark Metrics Guide
 
-This document explains the three qualitative metrics used in the medicinal-chemistry benchmark:
+This benchmark reports two complementary groups of metrics:
+
+1. **Operational metrics**: response latency, token usage, estimated generation cost, and run validity.
+2. **Scientific-quality metrics**: structured-rubric score, Medicinal and Chemical Term Density (MCTD), and target-conditioned semantic alignment.
+
+The operational metrics quantify the resources required to generate a response. The scientific-quality metrics evaluate different properties of the response itself. Cost, latency, and quality should be compared separately rather than combined into one score.
+
+## Quantitative operational metrics
+
+### Per-run measurements
+
+Each attempted sample is stored in the `runs` array of the result JSON. A successful generation contains the following quantitative fields:
+
+| Result field | Unit | Description |
+|---|---:|---|
+| `latency_sec` | seconds | Wall-clock time for the model generation API call, measured with `time.perf_counter()` and rounded to three decimal places |
+| `prompt_tokens` | tokens | Input tokens reported by the OpenAI API for the generation call |
+| `completion_tokens` | tokens | Output tokens reported by the OpenAI API for the generation call |
+| `total_tokens` | tokens | Total usage reported by the API, normally `prompt_tokens + completion_tokens` |
+| `cost_usd` | USD | Estimated generation cost based on the hard-coded input and output token prices |
+| `finish_reason` | categorical | API finish reason, retained to help identify filtered or otherwise incomplete responses |
+
+The generation cost is estimated as:
+
+```text
+cost_usd = (prompt_tokens / 1,000,000 × input_price_per_million)
+         + (completion_tokens / 1,000,000 × output_price_per_million)
+```
+
+The current constants in `benchmark_openai.py` are `$10.00` per million input tokens and `$50.00` per million output tokens. These are benchmark configuration values, not a live pricing lookup. Update them when evaluating a model with different pricing, and report the values used when publishing results.
+
+### Aggregate measurements
+
+The top level of the result JSON summarizes all attempted samples:
+
+| Result field | Description |
+|---|---|
+| `total_samples` | Number of samples loaded into the benchmark dataset |
+| `completed_samples` | Number of attempts currently saved in `runs`, including flagged responses and API errors |
+| `valid_samples` | Number of saved runs included in aggregate averages |
+| `flagged_samples` | Number of HTTP-successful responses excluded because the completion was empty or content-filtered |
+| `error_samples` | Number of failed API requests stored with an `error` field |
+| `avg_latency_sec` | Arithmetic mean of generation latency across valid runs |
+| `avg_prompt_tokens` | Arithmetic mean of generation prompt tokens across valid runs |
+| `avg_completion_tokens` | Arithmetic mean of generation completion tokens across valid runs |
+| `avg_cost_usd` | Arithmetic mean of estimated generation cost across valid runs |
+| `projected_cost_per_1k_runs_usd` | `avg_cost_usd × 1,000`, assuming future runs have the same average token usage |
+
+A run is valid for aggregation when it has neither an `error` field nor `flagged: true`. Flagged and error runs remain in the output for auditability but do not contribute to latency, token, cost, or scientific-quality averages. Because the benchmark checkpoints after every sample and can resume from an existing file, `completed_samples` may be smaller than `total_samples` while a run is in progress.
+
+The aggregate latency and cost calculations are:
+
+```text
+avg_latency_sec = sum(valid generation latency) / valid_samples
+avg_cost_usd = sum(valid estimated generation cost) / valid_samples
+projected_cost_per_1k_runs_usd = avg_cost_usd × 1,000
+```
+
+The projection is a linear estimate, not a measured batch price or throughput metric. The script does not currently report requests per second, tokens per second, percentiles, variance, or confidence intervals.
+
+### Judge usage is separate
+
+The structured-rubric evaluator makes an additional API call. When usage information is available, each run's `structured_rubric` object records:
+
+- `judge_latency_sec`
+- `judge_prompt_tokens`
+- `judge_completion_tokens`
+- `judge_total_tokens`
+- `judge_model`
+
+These judge measurements are **not** included in `latency_sec`, `cost_usd`, `avg_latency_sec`, or `avg_cost_usd`. The benchmark does not currently calculate judge cost. Therefore, `cost_usd` represents generation cost only, and the true end-to-end evaluation cost is higher whenever rubric judging is enabled.
+
+## Scientific-quality metrics
+
+The benchmark uses three scientific-quality metrics:
 
 1. Structured-rubric score
 2. Medicinal and Chemical Term Density (MCTD)
@@ -8,11 +82,13 @@ This document explains the three qualitative metrics used in the medicinal-chemi
 
 These metrics measure different aspects of a generated response. They should be interpreted together rather than added into a single score.
 
+Their top-level aggregate fields are `avg_structured_rubric`, `avg_medical_chemical_term_density`, and `avg_semantic_embedding_alignment`. Each is an arithmetic mean over valid runs that contain that particular metric. This detail matters when a judge call fails: the generation can still count as a valid operational run and contribute MCTD and alignment scores while being omitted from `avg_structured_rubric`.
+
 ## 1. Structured-rubric score
 
 ### What it measures
 
-The structured rubric uses GPT-4o-mini as an automated judge. The judge receives the target metadata, ligand information, benchmark prompt, and generated response. It scores whether the response contains scientifically useful medicinal-chemistry reasoning.
+The structured rubric uses the model selected by `BENCHMARK_JUDGE_MODEL` as an automated judge; it defaults to `gpt-4o-mini`. The judge receives the target metadata, ligand information, and generated response. It scores whether the response contains scientifically useful medicinal-chemistry reasoning.
 
 Each response is evaluated in five categories:
 
