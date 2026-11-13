@@ -1,7 +1,7 @@
 """GrowMax — fragment-based molecule growing for drug candidate generation."""
 
 import pandas as pd
-from rdkit import Chem, DataStructs
+from rdkit import Chem
 from rdkit.Chem import Descriptors, QED, rdMolDescriptors
 from rdkit.Chem.rdChemReactions import ReactionFromSmarts
 from rdkit.SimDivFilters import rdSimDivPickers
@@ -167,13 +167,6 @@ def fetch_growmax_compounds(seed_smiles: str, max_variants: int = 200):
     return status, compounds, pd.DataFrame(rows)
 
 
-def _ligand_efficiency(affinity: float, smiles: str) -> float:
-    """Ligand efficiency = |affinity| / heavy atom count. Higher is better."""
-    mol = Chem.MolFromSmiles(smiles)
-    hac = mol.GetNumHeavyAtoms() if mol else 1
-    return round(abs(affinity) / max(hac, 1), 3)
-
-
 def _diverse_top_k(candidates: list, top_k: int) -> list:
     """
     Select top_k diverse parents using MaxMin Tanimoto picking seeded at the
@@ -222,9 +215,10 @@ def run_score_guided_growth(
     then a final (status, all_docked, df) on completion. Gradio streams each
     yield to the UI so the user sees round-by-round progress.
 
-    Parent selection uses ligand efficiency (LE = |affinity| / HAC) rather than
-    raw affinity, so smaller compounds that bind efficiently are preferred over
-    large compounds with marginally better scores.
+    Parent selection uses ligand efficiency (LE = -affinity / HAC, from
+    tabs.pipeline.docking) rather than raw affinity, so smaller compounds that
+    bind efficiently are preferred over large compounds with marginally better
+    scores.
     """
     import os
     import shutil
@@ -235,6 +229,7 @@ def run_score_guided_growth(
         calculate_optimal_workers,
         fetch_pdb_file,
         find_binding_center,
+        ligand_efficiency,
         prepare_receptor_pdbqt,
     )
     from tabs.pipeline.docking_worker import dock_single_compound
@@ -309,7 +304,7 @@ def run_score_guided_growth(
                     to_dock[idx]["docked_sdf"] = docked_sdf
                     to_dock[idx]["docked"] = True
                     to_dock[idx]["growth_round"] = round_num
-                    to_dock[idx]["ligand_efficiency"] = _ligand_efficiency(
+                    to_dock[idx]["ligand_efficiency"] = ligand_efficiency(
                         affinity, to_dock[idx]["smiles"]
                     )
 

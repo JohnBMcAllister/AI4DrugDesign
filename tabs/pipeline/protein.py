@@ -308,7 +308,7 @@ def ai_explain_protein(protein_state):
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-5-nano-2025-08-07",
+            model=AI_MODEL,
             messages=[{"role": "user", "content": prompt}],
         )
         logger.info("AI protein deep dive completed successfully")

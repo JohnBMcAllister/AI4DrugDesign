@@ -10,6 +10,7 @@ from urllib.error import HTTPError
 
 import numpy as np
 import pandas as pd
+from rdkit import Chem
 
 from tabs.pipeline.docking_worker import dock_single_compound
 from tabs.pipeline.helpers import SKIP_LIGANDS, logger
@@ -50,6 +51,10 @@ def calculate_optimal_workers() -> int:
 
     return max(1, min(optimal, 32))
 
+def ligand_efficiency(affinity: float, smiles: str) -> float:
+    mol = Chem.MolFromSmiles(smiles)
+    hac = mol.GetNumHeavyAtoms() if mol else 1
+    return round(-affinity / max(hac, 1), 3)
 
 def fetch_pdb_file(pdb_id: str) -> str:
     """Fetch PDB file text from RCSB."""
@@ -200,6 +205,9 @@ def rank_by_activity(ro5_state, protein_info_state=None, num_dock=50):
                     to_dock[idx]["vina_affinity"] = round(affinity, 2)
                     to_dock[idx]["docked_sdf"] = docked_sdf
                     to_dock[idx]["docked"] = True
+                    to_dock[idx]["ligand_efficiency"] = ligand_efficiency(
+                        affinity, to_dock[idx]["smiles"]
+                    )
 
                     if affinity == float('inf'):
                         failed += 1
