@@ -13,8 +13,8 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Standard reference pricing per 1M tokens
-INPUT_PRICE_PER_M = 10.00
-OUTPUT_PRICE_PER_M = 50.00
+INPUT_PRICE_PER_M = 0.05
+OUTPUT_PRICE_PER_M = 0.40
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
 # Structured LLM-as-a-judge
