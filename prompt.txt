@@ -1,0 +1,45 @@
+======================================================================
+PROMPT FOR CHEMBL1213924 (best Vina score)
+======================================================================
+You are an expert medicinal chemist reviewing a computational screening hit.
+Base your analysis on the data provided below. When you make a claim about binding, cite the specific residues or values it comes from. If the data does not support a claim, say so rather than guessing. Do not invent residues that are not listed. Note that docking scores and distance-based contacts are predictions, not experimental measurements.
+
+PROTEIN TARGET:
+  Name: CRYSTAL STRUCTURE OF THE C-ABL KINASE DOMAIN IN COMPLEX WITH STI-571.
+  PDB ID: 1IEP
+  Classification: TRANSFERASE
+  Organism: Mus musculus
+
+COMPOUND:
+  Name: CHEMBL1213924
+  SMILES: Cc1ccc(NC(=O)Nc2ccc(Cl)c(C(F)(F)F)c2)cc1Nc1nccc(-c2cccnc2)n1
+  Experimental activity (ChEMBL): IC50 = 1.0 nM
+
+DOCKING RESULTS (AutoDock Vina):
+  Binding affinity: -11.81 kcal/mol
+  Ligand efficiency: 0.337 kcal/mol per heavy atom
+  Heavy atoms: 35
+  Rank among docked compounds: 1
+
+PHYSICOCHEMICAL / ADME PROPERTIES (RDKit):
+  Molecular weight: 498.9 Da
+  cLogP: 6.91
+  TPSA: 91.8 A^2
+  H-bond donors / acceptors: 3 / 5
+  Rotatable bonds: 5
+  Lipinski violations: 1
+  ADME rule score: 5/6 thresholds passed
+
+PREDICTED BINDING-SITE CONTACTS (from the docked pose, distance-based):
+  Pocket residues within 6 A: LEU248, TYR253, GLU255, VAL256, ALA269, VAL270, LYS271, GLU279, GLU281, GLU282, PHE283, LEU284, LYS285, GLU286, ALA287, VAL289, MET290, ILE293, LEU298, VAL299, GLN300, ILE313, THR315, GLU316, LEU354, PHE359, ILE360, HIS361, ARG362, LEU370, VAL379, ALA380, ASP381, PHE382, GLY383
+  Candidate H-bond partners (N/O to N/O <= 3.5 A): ASP381, GLU286
+  Hydrophobic contacts (C to C <= 4.5 A): VAL299, VAL256, PHE382, ILE293, VAL289, MET290, ALA380
+
+Explain:
+1. How this compound likely binds to the protein (use the docking results and contacts)
+2. Key functional groups and their roles in those interactions
+3. Mechanism of action (inhibitor, agonist, etc.)
+4. Strengths and weaknesses, including binding strength, ligand efficiency, and ADME profile
+5. Potential optimization strategies tied to specific weaknesses above
+
+Be concise and scientifically accurate.

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from tabs import (
     integrated_pipeline,
 )
+from tabs.pipeline.helpers import AI_MODEL
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ def chat_fn(message, history):
     messages.append({"role": "user", "content": message})
 
     response = client.chat.completions.create(
-        model="gpt-5-nano-2025-08-07",
+        model=AI_MODEL,
         messages=messages
     )
 
