@@ -96,6 +96,7 @@ def _pipeline_initial_status(strategy):
 
 # ── UI ─────────────────────────────────────────────────────────────────
 
+
 def create_tab():
     with gr.Tab("Drug Discovery Pipeline"):
         # --- State ---

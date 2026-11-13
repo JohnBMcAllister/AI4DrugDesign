@@ -65,28 +65,47 @@ def fetch_pdb_file(pdb_id: str) -> str:
 
 
 def find_binding_center(pdb_text: str) -> tuple[float, float, float]:
-    """Find binding site center from co-crystallized ligand."""
-    residue_coords = {}
+    """
+    Find binding site center from ONE copy of the co-crystallized ligand.
+    """
+    ligand_coords: dict[tuple[str, str, str], list] = {}
+    protein_coords: list = []
 
     for line in pdb_text.splitlines():
-        if not line.startswith("HETATM"):
-            continue
-        res_name = line[17:20].strip()
-        if res_name in SKIP_LIGANDS or res_name in ("WAT", "K"):
-            continue
+        record = line[:6]
         try:
-            x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
-            residue_coords.setdefault(res_name, []).append((x, y, z))
+            xyz = (float(line[30:38]), float(line[38:46]), float(line[46:54]))
         except (ValueError, IndexError):
             continue
 
-    if not residue_coords:
-        logger.warning("No ligand found, using protein geometric center")
+        if record == "ATOM  ":
+            protein_coords.append(xyz)
+            continue
+        if record != "HETATM":
+            continue
+
+        res_name = line[17:20].strip()
+        if res_name in SKIP_LIGANDS or res_name in ("WAT", "K"):
+            continue
+        chain = line[21] if len(line) > 21 else " "
+        res_seq = line[22:26].strip()
+        ligand_coords.setdefault((res_name, chain, res_seq), []).append(xyz)
+
+    if ligand_coords:
+        # Largest ligand instance; on a tie, the first one in the file (usually chain A).
+        best = max(ligand_coords, key=lambda k: len(ligand_coords[k]))
+        center = np.array(ligand_coords[best]).mean(axis=0)
+        logger.info(
+            f"Binding center from ligand {best[0]} (chain {best[1]}, residue {best[2]}, "
+            f"{len(ligand_coords[best])} atoms); {len(ligand_coords)} ligand instance(s) in file"
+        )
+    elif protein_coords:
+        center = np.array(protein_coords).mean(axis=0)
+        logger.warning("No ligand found, using protein geometric center (docking box may miss the pocket)")
+    else:
+        logger.warning("No coordinates found, using origin")
         return (0.0, 0.0, 0.0)
 
-    best_res = max(residue_coords, key=lambda r: len(residue_coords[r]))
-    coords = np.array(residue_coords[best_res])
-    center = coords.mean(axis=0)
     return round(float(center[0]), 3), round(float(center[1]), 3), round(float(center[2]), 3)
 
 
