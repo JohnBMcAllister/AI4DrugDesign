@@ -10,11 +10,7 @@ Single-page workflow:
   6. Select compound → Detail view + AI explanation
 """
 
-import hashlib
-import json
-import os
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 
 import gradio as gr
 
@@ -23,7 +19,6 @@ from tabs.pipeline.compounds import fetch_compounds
 from tabs.pipeline.detail import (
     COMPOUND_3D_PLACEHOLDER,
     DOCKED_3D_PLACEHOLDER,
-    _get_pocket_contacts,
     ai_explain_compound,
     on_select_compound,
     populate_compound_selector,
@@ -38,170 +33,6 @@ from tabs.pipeline.protein import (
     ai_explain_protein,
     analyze_protein,
 )
-
-
-# ── Benchmark candidate export ────────────────────────────────────────
-#
-# Writing benchmark candidates is OFF by default, so an ordinary pipeline run
-# can never silently replace the dataset an eval was measured against. Enable
-# it deliberately for a regeneration run:
-#
-#   DUMP_BENCHMARK_CANDIDATES=1 python app.py            # writes new files only
-#   DUMP_BENCHMARK_CANDIDATES=1 \
-#   DUMP_BENCHMARK_OVERWRITE=1 python app.py             # replaces existing ones
-#
-# Every dump also writes a <PDB>_candidates.meta.json sidecar recording the
-# SHA-256 of the data file and the docking box centre it was produced with, so
-# a later change to find_binding_center is detectable instead of invisible.
-
-BENCHMARK_DUMP_VERSION = "vina-contacts-v1"
-
-
-def _env_flag(name: str) -> bool:
-    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "on")
-
-
-# Fields consumed by detail.build_compound_context. Keep this in step with it:
-# anything missing here renders as "not available" in the benchmark prompt.
-_PROMPT_COMPOUND_FIELDS = (
-    "name",
-    "smiles",
-    "chembl_id",
-    "activity_type",
-    "activity_value",
-    "activity_units",
-    "mw",
-    "logp",
-    "hbd",
-    "hba",
-    "tpsa",
-    "rot_bonds",
-    "ro5_violations",
-    "adme_score",
-    "vina_affinity",
-    "ligand_efficiency",
-    "binding_rank",
-    "growth_round",
-)
-
-
-def _sha256(path: str) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _binding_center_for(pdb_id: str):
-    """Record the docking box centre used, for provenance."""
-    try:
-        from tabs.pipeline.docking import fetch_pdb_file, find_binding_center
-        return list(find_binding_center(fetch_pdb_file(pdb_id)))
-    except Exception as exc:
-        logger.warning(f"Could not record binding centre for {pdb_id}: {exc}")
-        return None
-
-
-def _dump_test_candidates(pdb_id, protein_state, final_state):
-    """Save the top candidates from a completed pipeline run as benchmark cases.
-
-    Exports every field the benchmark prompt reads, plus the Vina pose and the
-    binding-site contacts derived from it. The pose is the one thing that cannot
-    be recomputed later, so it is stored verbatim.
-    """
-    if not _env_flag("DUMP_BENCHMARK_CANDIDATES"):
-        return
-
-    if not final_state or not protein_state:
-        logger.warning("Benchmark dump skipped: the run produced no final compounds.")
-        return
-
-    top_n = int(os.getenv("DUMP_BENCHMARK_TOP_N", "5"))
-    os.makedirs("benchmarks", exist_ok=True)
-
-    clean_pdb = (
-        pdb_id.strip().upper() if pdb_id else protein_state.get("pdb_id", "TARGET")
-    )
-    file_path = f"benchmarks/{clean_pdb}_candidates.json"
-    meta_path = f"benchmarks/{clean_pdb}_candidates.meta.json"
-
-    if os.path.exists(file_path) and not _env_flag("DUMP_BENCHMARK_OVERWRITE"):
-        logger.warning(
-            f"Benchmark dump skipped: {file_path} already exists. "
-            "Set DUMP_BENCHMARK_OVERWRITE=1 to replace it."
-        )
-        return
-
-    protein_meta = {
-        "title": protein_state.get("title", ""),
-        "pdb_id": clean_pdb,
-        "classification": protein_state.get("classification", ""),
-        "organism": protein_state.get("organism", ""),
-    }
-
-    payload = []
-    missing_fields: set[str] = set()
-
-    for c in final_state[:top_n]:
-        compound = {k: c[k] for k in _PROMPT_COMPOUND_FIELDS if k in c}
-
-        # activity_units is present-but-None for some ChEMBL rows; an empty
-        # string keeps "RBA = 0.005 None" out of the prompt.
-        compound["activity_units"] = c.get("activity_units") or ""
-
-        for field in _PROMPT_COMPOUND_FIELDS:
-            if field in ("growth_round", "chembl_id"):
-                continue
-            if compound.get(field) is None:
-                missing_fields.add(field)
-
-        if c.get("docked_sdf"):
-            compound["docked_sdf"] = c["docked_sdf"]
-
-        sample = {"protein": protein_meta, "compound": compound}
-
-        try:
-            sample["contacts"] = _get_pocket_contacts(c, clean_pdb)
-        except Exception as exc:
-            logger.warning(
-                f"Could not derive contacts for {c.get('name')}: {exc}"
-            )
-            sample["contacts"] = None
-
-        payload.append(sample)
-
-    with open(file_path, "w") as f:
-        json.dump(payload, f, indent=2)
-
-    without_contacts = sum(1 for s in payload if not s.get("contacts"))
-    meta = {
-        "dump_version": BENCHMARK_DUMP_VERSION,
-        "written_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "pdb_id": clean_pdb,
-        "sample_count": len(payload),
-        "binding_center": _binding_center_for(clean_pdb),
-        "samples_without_contacts": without_contacts,
-        "sha256": _sha256(file_path),
-    }
-    with open(meta_path, "w") as f:
-        json.dump(meta, f, indent=2)
-
-    logger.info(
-        f"Dumped {len(payload)} benchmark cases to {file_path} "
-        f"(sha256 {meta['sha256'][:12]}, centre {meta['binding_center']})"
-    )
-    if without_contacts:
-        logger.warning(
-            f"{without_contacts}/{len(payload)} candidates have no binding-site "
-            "contacts — the benchmark prompt will say so for those."
-        )
-    if missing_fields:
-        logger.warning(
-            "Benchmark candidates are missing values for: "
-            + ", ".join(sorted(missing_fields))
-            + ". Those lines render as 'not available' in the prompt."
-        )
 
 
 # ── Orchestration helpers ─────────────────────────────────────────────
@@ -264,7 +95,6 @@ def _pipeline_initial_status(strategy):
 
 
 # ── UI ─────────────────────────────────────────────────────────────────
-
 
 def create_tab():
     with gr.Tab("Drug Discovery Pipeline"):
@@ -559,10 +389,6 @@ def create_tab():
             populate_compound_selector,
             inputs=[final_state],
             outputs=[compound_selector],
-            **_progress_args,
-        ).then(
-            _dump_test_candidates,
-            inputs=[pdb_input, protein_state, final_state],
             **_progress_args,
         )
 
