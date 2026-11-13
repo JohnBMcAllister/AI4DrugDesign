@@ -1,0 +1,87 @@
+[
+  {
+    "protein": {
+      "title": "HUMAN ESTROGEN RECEPTOR ALPHA LIGAND-BINDING DOMAIN IN COMPLEX WITH 4-HYDROXYTAMOXIFEN",
+      "pdb_id": "3ERT",
+      "classification": "NUCLEAR RECEPTOR",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL185954",
+      "smiles": "Oc1ccc(-c2nn3cc(O)cnc3c2-c2ccccc2)cc1",
+      "mw": 303.3,
+      "logp": 3.47,
+      "activity_type": "Binding affinity",
+      "activity_value": 0.003,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "HUMAN ESTROGEN RECEPTOR ALPHA LIGAND-BINDING DOMAIN IN COMPLEX WITH 4-HYDROXYTAMOXIFEN",
+      "pdb_id": "3ERT",
+      "classification": "NUCLEAR RECEPTOR",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL185355",
+      "smiles": "Oc1ccc(-c2nn3cc(O)cnc3c2-c2ccc(O)cc2)cc1",
+      "mw": 319.3,
+      "logp": 3.18,
+      "activity_type": "Binding affinity",
+      "activity_value": 0.004,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "HUMAN ESTROGEN RECEPTOR ALPHA LIGAND-BINDING DOMAIN IN COMPLEX WITH 4-HYDROXYTAMOXIFEN",
+      "pdb_id": "3ERT",
+      "classification": "NUCLEAR RECEPTOR",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL185907",
+      "smiles": "Oc1ccc(-c2nn3cccnc3c2-c2ccc(O)cc2)cc1",
+      "mw": 303.3,
+      "logp": 3.47,
+      "activity_type": "Binding affinity",
+      "activity_value": 0.004,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "HUMAN ESTROGEN RECEPTOR ALPHA LIGAND-BINDING DOMAIN IN COMPLEX WITH 4-HYDROXYTAMOXIFEN",
+      "pdb_id": "3ERT",
+      "classification": "NUCLEAR RECEPTOR",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL138099",
+      "smiles": "Oc1ccc2c(c1)CN1CN2Cc2cc(O)ccc21",
+      "mw": 254.3,
+      "logp": 2.4,
+      "activity_type": "RBA",
+      "activity_value": 0.005,
+      "activity_units": null
+    }
+  },
+  {
+    "protein": {
+      "title": "HUMAN ESTROGEN RECEPTOR ALPHA LIGAND-BINDING DOMAIN IN COMPLEX WITH 4-HYDROXYTAMOXIFEN",
+      "pdb_id": "3ERT",
+      "classification": "NUCLEAR RECEPTOR",
+      "organism": "Homo sapiens"
+    },
+    "compound": {
+      "name": "CHEMBL135639",
+      "smiles": "N#CC(Cc1ccc(O)cc1)c1ccccc1",
+      "mw": 223.3,
+      "logp": 3.24,
+      "activity_type": "RBA",
+      "activity_value": 0.005,
+      "activity_units": "%"
+    }
+  }
+]

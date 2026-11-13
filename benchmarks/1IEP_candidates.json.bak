@@ -1,0 +1,87 @@
+[
+  {
+    "protein": {
+      "title": "CRYSTAL STRUCTURE OF THE C-ABL KINASE DOMAIN IN COMPLEX WITH STI-571.",
+      "pdb_id": "1IEP",
+      "classification": "TRANSFERASE",
+      "organism": "Mus musculus"
+    },
+    "compound": {
+      "name": "CHEMBL1213924",
+      "smiles": "Cc1ccc(NC(=O)Nc2ccc(Cl)c(C(F)(F)F)c2)cc1Nc1nccc(-c2cccnc2)n1",
+      "mw": 498.9,
+      "logp": 6.91,
+      "activity_type": "IC50",
+      "activity_value": 1.0,
+      "activity_units": "nM"
+    }
+  },
+  {
+    "protein": {
+      "title": "CRYSTAL STRUCTURE OF THE C-ABL KINASE DOMAIN IN COMPLEX WITH STI-571.",
+      "pdb_id": "1IEP",
+      "classification": "TRANSFERASE",
+      "organism": "Mus musculus"
+    },
+    "compound": {
+      "name": "CHEMBL611357",
+      "smiles": "Cc1c(CC(=O)Cl)csc1C(=O)CCl",
+      "mw": 251.1,
+      "logp": 2.79,
+      "activity_type": "Inhibition",
+      "activity_value": 10.0,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "CRYSTAL STRUCTURE OF THE C-ABL KINASE DOMAIN IN COMPLEX WITH STI-571.",
+      "pdb_id": "1IEP",
+      "classification": "TRANSFERASE",
+      "organism": "Mus musculus"
+    },
+    "compound": {
+      "name": "CHEMBL143743",
+      "smiles": "Cc1sc(C(=O)CCl)cc1C(=O)CCl",
+      "mw": 251.1,
+      "logp": 2.9,
+      "activity_type": "Inhibition",
+      "activity_value": 10.0,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "CRYSTAL STRUCTURE OF THE C-ABL KINASE DOMAIN IN COMPLEX WITH STI-571.",
+      "pdb_id": "1IEP",
+      "classification": "TRANSFERASE",
+      "organism": "Mus musculus"
+    },
+    "compound": {
+      "name": "CHEMBL141190",
+      "smiles": "O=C(CCl)c1csc(C(=O)CCl)c1",
+      "mw": 237.1,
+      "logp": 2.59,
+      "activity_type": "Inhibition",
+      "activity_value": 10.0,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "CRYSTAL STRUCTURE OF THE C-ABL KINASE DOMAIN IN COMPLEX WITH STI-571.",
+      "pdb_id": "1IEP",
+      "classification": "TRANSFERASE",
+      "organism": "Mus musculus"
+    },
+    "compound": {
+      "name": "CHEMBL143273",
+      "smiles": "O=C(CCl)c1c(Br)sc(Cl)c1Cl",
+      "mw": 308.4,
+      "logp": 4.24,
+      "activity_type": "Inhibition",
+      "activity_value": 10.0,
+      "activity_units": "%"
+    }
+  }
+]

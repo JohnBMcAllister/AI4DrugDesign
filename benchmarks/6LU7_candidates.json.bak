@@ -1,0 +1,87 @@
+[
+  {
+    "protein": {
+      "title": "The crystal structure of COVID-19 main protease in complex with an inhibitor N3",
+      "pdb_id": "6LU7",
+      "classification": "VIRAL PROTEIN",
+      "organism": "Severe acute respiratory syndrome coronavirus 2, synthetic construct"
+    },
+    "compound": {
+      "name": "CHEMBL4858725",
+      "smiles": "O=C(c1ccc2ccccc2n1)N1CCc2c(nc(-c3ccccc3)[nH]c2=O)C1",
+      "mw": 382.4,
+      "logp": 3.18,
+      "activity_type": "Inhibition",
+      "activity_value": 1.16,
+      "activity_units": "%"
+    }
+  },
+  {
+    "protein": {
+      "title": "The crystal structure of COVID-19 main protease in complex with an inhibitor N3",
+      "pdb_id": "6LU7",
+      "classification": "VIRAL PROTEIN",
+      "organism": "Severe acute respiratory syndrome coronavirus 2, synthetic construct"
+    },
+    "compound": {
+      "name": "CHEMBL5208244",
+      "smiles": "NC(=O)CCN(NC(=O)[C@H](CC1CCCCC1)NC(=O)c1cc2ccccc2[nH]1)C(=O)CCl",
+      "mw": 476.0,
+      "logp": 2.21,
+      "activity_type": "IC50",
+      "activity_value": 2.0,
+      "activity_units": "nM"
+    }
+  },
+  {
+    "protein": {
+      "title": "The crystal structure of COVID-19 main protease in complex with an inhibitor N3",
+      "pdb_id": "6LU7",
+      "classification": "VIRAL PROTEIN",
+      "organism": "Severe acute respiratory syndrome coronavirus 2, synthetic construct"
+    },
+    "compound": {
+      "name": "CHEMBL5201620",
+      "smiles": "O=C(NCc1ccco1)C1CN(C(=O)c2cc(=O)[nH]c(=O)[nH]2)CCN1c1ccc(Cl)c(Cl)c1",
+      "mw": 492.3,
+      "logp": 1.61,
+      "activity_type": "IC50",
+      "activity_value": 0.79,
+      "activity_units": "nM"
+    }
+  },
+  {
+    "protein": {
+      "title": "The crystal structure of COVID-19 main protease in complex with an inhibitor N3",
+      "pdb_id": "6LU7",
+      "classification": "VIRAL PROTEIN",
+      "organism": "Severe acute respiratory syndrome coronavirus 2, synthetic construct"
+    },
+    "compound": {
+      "name": "CHEMBL5192350",
+      "smiles": "O=C(NCc1ccco1)[C@@H]1CN(C(=O)c2cc(=O)[nH]c(=O)[nH]2)CCN1c1ccc(Cl)c(Cl)c1",
+      "mw": 492.3,
+      "logp": 1.61,
+      "activity_type": "IC50",
+      "activity_value": 0.35,
+      "activity_units": "nM"
+    }
+  },
+  {
+    "protein": {
+      "title": "The crystal structure of COVID-19 main protease in complex with an inhibitor N3",
+      "pdb_id": "6LU7",
+      "classification": "VIRAL PROTEIN",
+      "organism": "Severe acute respiratory syndrome coronavirus 2, synthetic construct"
+    },
+    "compound": {
+      "name": "CHEMBL5174111",
+      "smiles": "O=C(NCc1cccs1)[C@@H]1CN(C(=O)c2cccnc2)CCN1c1ccc(Cl)c(Cl)c1",
+      "mw": 475.4,
+      "logp": 4.1,
+      "activity_type": "IC50",
+      "activity_value": 0.4,
+      "activity_units": "nM"
+    }
+  }
+]
