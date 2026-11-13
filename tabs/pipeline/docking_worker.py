@@ -6,7 +6,6 @@ in worker processes, which would cause each worker to try launching a Gradio ser
 """
 
 import os
-import sys
 import tempfile
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -39,23 +38,6 @@ def smiles_to_pdbqt(smiles: str, output_path: str) -> None:
         f.write(pdbqt_string)
 
 
-def _pose_to_molblock(poses_pdbqt: str) -> str:
-    """Convert Vina's docked pose (PDBQT text) to an RDKit MolBlock.
-    """
-    from meeko import PDBQTMolecule
-
-    pdbqt_mol = PDBQTMolecule(poses_pdbqt, skip_typing=True)
-    try:
-        from meeko import RDKitMolCreate
-    except ImportError:  # very old Meeko
-        return Chem.MolToMolBlock(next(iter(pdbqt_mol)).export_rdkit_mol())
-
-    mols = RDKitMolCreate.from_pdbqt_mol(pdbqt_mol)
-    if not mols or mols[0] is None:
-        raise ValueError("Meeko returned no molecule for the docked pose")
-    return Chem.MolToMolBlock(mols[0])
-
-
 def dock_single_compound(args: tuple) -> tuple[int, float, str]:
     """
     Worker function to dock a single compound (for parallel processing).
@@ -82,16 +64,18 @@ def dock_single_compound(args: tuple) -> tuple[int, float, str]:
             energies = v.energies(n_poses=1)
             affinity = float(energies[0][0])
 
-            # Extract the docked 3D pose and convert to SDF for the viewer
-            # and the AI prompt's binding-site contacts.
+            # Extract the docked 3D pose and convert to SDF for the visualizer
             docked_sdf = ""
             try:
                 poses_pdbqt = v.poses(n_poses=1)
-                docked_sdf = _pose_to_molblock(poses_pdbqt)
-            except Exception as exc:
-                # Don't fail the dock, but don't hide the problem either.
-                print(f"[docking_worker] pose extraction failed for compound {idx}: {exc!r}",
-                      file=sys.stderr)
+                from meeko import PDBQTMolecule
+                pdbqt_mol = PDBQTMolecule(poses_pdbqt, skip_typing=True)
+                for pose in pdbqt_mol:
+                    rdkit_mol = pose.export_rdkit_mol()
+                    docked_sdf = Chem.MolToMolBlock(rdkit_mol)
+                    break
+            except Exception:
+                pass  # viewer will fall back to conformer generation
 
             return (idx, affinity, docked_sdf)
 
