@@ -647,7 +647,7 @@ def benchmark_model(
 
         protein = sample["protein"]
         compound = sample["compound"]
-        prompt = build_explain_prompt(compound, protein, None)
+        prompt = build_explain_prompt(compound, protein, sample.get("contacts"))
 
         start = time.perf_counter()
         try:
