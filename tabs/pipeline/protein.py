@@ -5,8 +5,9 @@ import html as html_module
 import requests
 
 from tabs.pipeline.helpers import (
-    ai_complete,
+    AI_MODEL,
     fetch_pdb_ligands,
+    get_openai_client,
     get_uniprot_from_pdb,
     logger,
 )
@@ -236,27 +237,29 @@ def analyze_protein(pdb_id: str):
     )
 
     # AI analysis
-    try:
-        logger.info(f"Requesting AI analysis for {pdb_id}")
-        prompt = (
-            "You are an expert structural biologist. Briefly analyze this "
-            "protein for drug discovery.\n"
-            f"PDB: {info['pdb_id']}, Title: {info['title']}, "
-            f"Classification: {info['classification']}, "
-            f"Organism: {info['organism']}, Ligands: {lig_str}, "
-            f"Binding Sites: {site_str}\n\n"
-            "Provide a concise analysis: druggable binding sites, key "
-            "interactions, and design considerations."
-        )
-        analysis = ai_complete(prompt)
-        if analysis:
-            text += "\n\nAI ANALYSIS:\n" + analysis
+    client = get_openai_client()
+    if client:
+        try:
+            logger.info(f"Requesting AI analysis for {pdb_id}")
+            prompt = (
+                "You are an expert structural biologist. Briefly analyze this "
+                "protein for drug discovery.\n"
+                f"PDB: {info['pdb_id']}, Title: {info['title']}, "
+                f"Classification: {info['classification']}, "
+                f"Organism: {info['organism']}, Ligands: {lig_str}, "
+                f"Binding Sites: {site_str}\n\n"
+                "Provide a concise analysis: druggable binding sites, key "
+                "interactions, and design considerations."
+            )
+            resp = client.chat.completions.create(
+                model=AI_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text += "\n\nAI ANALYSIS:\n" + resp.choices[0].message.content
             logger.info(f"AI analysis completed for {pdb_id}")
-        else:
-            logger.warning("AI analysis skipped: no API key for the configured provider")
-    except Exception as exc:
-        logger.error(f"AI analysis failed for {pdb_id}: {exc}")
-        text += f"\n\n[AI analysis failed: {exc}]"
+        except Exception as exc:
+            logger.error(f"AI analysis failed for {pdb_id}: {exc}")
+            text += f"\n\n[AI analysis failed: {exc}]"
 
     viewer = build_3d_viewer_html(pdb_id)
     logger.info(f"=== STEP 1 COMPLETE: {pdb_id} analyzed successfully ===")
@@ -271,6 +274,11 @@ def ai_explain_protein(protein_state):
     if not protein_state:
         logger.warning("Protein deep dive requested with no protein data")
         return "No protein data available. Run Step 1 first."
+
+    client = get_openai_client()
+    if not client:
+        logger.warning("Protein deep dive requested but OpenAI API key not set")
+        return "[OpenAI API key not set]"
 
     p = protein_state
     logger.info(f"Generating protein deep dive for {p['pdb_id']}")
@@ -299,12 +307,12 @@ def ai_explain_protein(protein_state):
     )
 
     try:
-        analysis = ai_complete(prompt)
-        if not analysis:
-            logger.warning("Protein deep dive requested but no API key set")
-            return "[API key not set for the configured provider]"
+        resp = client.chat.completions.create(
+            model="gpt-5-nano-2025-08-07",
+            messages=[{"role": "user", "content": prompt}],
+        )
         logger.info("AI protein deep dive completed successfully")
-        return analysis
+        return resp.choices[0].message.content
     except Exception as exc:
         logger.error(f"AI protein deep dive failed: {exc}")
         return f"AI analysis failed: {exc}"
