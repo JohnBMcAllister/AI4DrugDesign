@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 # ── OpenAI ────────────────────────────────────────────────────────────
 
+AI_MODEL = "gpt-5-nano-2025-08-07"
+
 def get_openai_client():
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
