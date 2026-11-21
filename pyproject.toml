@@ -20,4 +20,5 @@ dependencies = [
     "requests",
     "Pillow",
     "pytest>=8.0.0",
+    "anthropic>=2.12.0",
 ]
