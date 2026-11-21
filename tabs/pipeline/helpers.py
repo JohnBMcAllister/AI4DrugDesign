@@ -1,10 +1,10 @@
-"""Shared helpers: logging, OpenAI client, PDB ligand / UniProt lookups."""
+"""Shared helpers: logging, AI client, PDB ligand / UniProt lookups."""
 
 import logging
 import os
 
 import requests
-from openai import OpenAI
+from anthropic import Anthropic
 
 # ── Logging ───────────────────────────────────────────────────────────
 
@@ -19,13 +19,40 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ── OpenAI ────────────────────────────────────────────────────────────
+# ── Anthropic ────────────────────────────────────────────────────────────
 
-def get_openai_client():
-    api_key = os.getenv("OPENAI_API_KEY")
+AI_MODEL = "claude-sonnet-5"
+AI_MAX_TOKENS = 8192
+ 
+ 
+def get_ai_client():
+    """Return an Anthropic client, or None when no API key is configured."""
+    api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         return None
-    return OpenAI(api_key=api_key)
+    return Anthropic(api_key=api_key)
+ 
+ 
+def generate_text(prompt: str, max_tokens: int = AI_MAX_TOKENS) -> str:
+    """Send a single-turn prompt to the configured model and return its text.
+ 
+    Raises RuntimeError when no API key is configured, and lets any API
+    error propagate so the caller can report it.
+    """
+    client = get_ai_client()
+    if client is None:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set — cannot generate explanation"
+        )
+ 
+    response = client.messages.create(
+        model=AI_MODEL,
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return "".join(
+        block.text for block in response.content if block.type == "text"
+    )
 
 
 # ── Constants ─────────────────────────────────────────────────────────
